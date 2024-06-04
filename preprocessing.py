@@ -8,7 +8,10 @@ historical_stocks = pd.read_csv("../../Downloads/historical_stock_prices.csv/his
 print(historical_stock_prices.head())
 print(historical_stocks.head())
 
+historical_stock_prices=historical_stock_prices.drop(columns='adj_close')
 historical_stocks=historical_stocks[historical_stocks["ticker"].isin(historical_stock_prices["ticker"])]
+
+historical_stocks["name"]=historical_stocks["name"].str.replace(r",\s*INC\.$",".INC.",regex=True)
 # Pulizia dei dati: rimuovere le righe con valori nulli
 cleaned_prices = historical_stock_prices.fillna("N/A")
 cleaned_stocks = historical_stocks.fillna("N/A")

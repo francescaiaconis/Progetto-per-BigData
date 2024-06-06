@@ -1,18 +1,19 @@
-#!/usr/bin/env python
-import pandas as pd
+#!/usr/bin/env python3
+import sys
+from datetime import datetime
 
-data= pd.read_csv("../../Downloads/historical_stock_prices.csv/merged_data.csv")
+next(sys.stdin)
 
-results = []
-for index, row in data.iterrows():
-    key = (row['ticker'], row['name'])
-    value = {
-        'close': row['close'],
-        'low': row['low'],
-        'high': row['high'],
-        'volume': row['volume'],
-        'date': row['date']
-    }
-    results.append((key, value))
-print(results[:5])
+for line in sys.stdin:
+    row = line.strip().split(',')
+    ticker = row[0]
+    name=row[8]
+    close = row[2]
+    low = row[3]
+    high = row[4]
+    volume = row[5]
+    date = row[6]
+    year = datetime.strptime(date, '%Y-%m-%d').year
+
+    print(f"{ticker}\t{name}\t{year}\t{close}\t{low}\t{high}\t{volume}\t{date}")
 

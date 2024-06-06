@@ -2,50 +2,50 @@
 import sys
 from collections import defaultdict
 
-def reducer():
-    current_ticker = None
-    current_year = None
-    company_name = None
-    prices = []
-    lows = []
-    highs = []
-    volumes = []
 
-    for line in sys.stdin:
-        ticker, year, close, low, high, volume, date, name = line.strip().split("\t")
-        year = int(year)
-        close = float(close)
-        low = float(low)
-        high = float(high)
-        volume = int(volume)
+def output_stats(data):
+    for ticker, ticker_data in data.items():
+        name = ticker_data['name']
+        for year, year_data in ticker_data['years'].items():
+            prices = year_data['prices']
 
-        if current_ticker != ticker or current_year != year:
-            if current_ticker is not None:
-                output_stats(current_ticker, current_year, company_name, prices, lows, highs, volumes)
-            
-            current_ticker = ticker
-            current_year = year
-            company_name = name
-            prices = []
-            lows = []
-            highs = []
-            volumes = []
+            # Trova il primo e l'ultimo prezzo di chiusura nell'anno
+            first_close_date, first_close = min(prices.items())
+            last_close_date, last_close = max(prices.items())
 
-        prices.append(close)
-        lows.append(low)
-        highs.append(high)
-        volumes.append(volume)
+            # Calcola la variazione percentuale
+            percent_change = ((last_close - first_close) / first_close) * 100
 
-    if current_ticker is not None:
-        output_stats(current_ticker, current_year, company_name, prices, lows, highs, volumes)
+            # Trova il prezzo minimo e massimo, e calcola il volume medio
+            min_price = min(year_data['lows'])
+            max_price = max(year_data['highs'])
+            avg_volume = sum(year_data['volumes']) / len(year_data['volumes'])
 
-def output_stats(ticker, year, name, prices, lows, highs, volumes):
-    first_close = prices[0]
-    last_close = prices[-1]
-    percent_change = ((last_close - first_close) / first_close) * 100
-    min_price = min(lows)
-    max_price = max(highs)
-    avg_volume = sum(volumes) / len(volumes)
+            # Stampa le statistiche
+            print(f"{ticker}\t{name}\t{year}\t{round(percent_change, 2)}\t{min_price}\t{max_price}\t{round(avg_volume, 2)}")
 
-    print(f"{ticker}\t{name}\t{year}\t{round(percent_change, 2)}\t{min_price}\t{max_price}\t{avg_volume}")
+data = {}
+for line in sys.stdin:
+    ticker, name, year, day, month, close, low, high, volume, date = line.strip().split("\t")
+    year = int(year)
+    close = float(close)
+    low = float(low)
+    high = float(high)
+    volume = float(volume)
+        
+    # Aggiorna i dati dell'azione
+    if ticker not in data:
+        data[ticker] = {'name': name, 'years': {}}
+    if year not in data[ticker]['years']:
+        data[ticker]['years'][year] = {'lows': [], 'highs': [], 'volumes': [], 'prices': {}}
+
+    # Aggiungi i dati dell'anno corrente
+    data[ticker]['years'][year]['prices'][date] = close
+    data[ticker]['years'][year]['lows'].append(low)
+    data[ticker]['years'][year]['highs'].append(high)
+    data[ticker]['years'][year]['volumes'].append(volume)
+
+output_stats(data)
+
+
 

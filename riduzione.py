@@ -4,7 +4,7 @@ import pandas as pd
 df = pd.read_csv('merged_data.csv')
 
 # Estrai 100 record casuali
-df_sample = df.sample(n=100, random_state=42)
+df_wtr = df[df['ticker'] == 'WTR']
 
 # Salva il campione in un nuovo file CSV
-df_sample.to_csv('campione_100_record.csv', index=False)
+df_wtr.to_csv('campione_record.csv', index=False)

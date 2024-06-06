@@ -13,7 +13,10 @@ for line in sys.stdin:
     high = row[4]
     volume = row[5]
     date = row[6]
-    year = datetime.strptime(date, '%Y-%m-%d').year
+    data_parsed = datetime.strptime(date, '%Y-%m-%d')
+    year = data_parsed.year
+    day= data_parsed.day
+    month= data_parsed.month
 
-    print(f"{ticker}\t{name}\t{year}\t{close}\t{low}\t{high}\t{volume}\t{date}")
+    print(f"{ticker}\t{name}\t{year}\t{day}\t{month}\t{close}\t{low}\t{high}\t{volume}\t{date}")
 

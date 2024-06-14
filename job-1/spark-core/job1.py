@@ -4,8 +4,6 @@ import argparse
 from pyspark import SparkConf, SparkContext
 from datetime import datetime
 
-
-
 # Parse command-line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("--input", type=str, help="Input file path")
@@ -20,14 +18,15 @@ sc = SparkContext(conf=conf)
 # Read input data from file
 lines_RDD = sc.textFile(input_file)
 
-
 # Skip header and parse lines
 header = lines_RDD.first()
+
 # Extract and convert necessary fields
 parsed_RDD = lines_RDD.filter(lambda line: line != header).map(lambda line: (
     line.strip().split(','),  # Split by comma delimiter
     datetime.strptime(line.strip().split(',')[6], '%Y-%m-%d')  # Extract and parse date
 ))
+
 # Combine data by ticker and year
 stock_data_RDD = parsed_RDD.map(lambda x: (
     (x[0][0], x[1].year),  # (Ticker, Year)
@@ -69,9 +68,17 @@ def calculate_year_stats(year_data):
         'max_price': max_price,
         'avg_volume': round(avg_volume, 2)
     }
+
 # Group data by ticker
-ticker_data_RDD = stock_data_RDD.map(lambda x: (x[0][0], (x[0][1], x[1])))  # (Ticker, (Year, Data))
+ticker_data_RDD = stock_data_RDD.map(lambda x: (x[0][0], (x[0][1], list(x[1]))))  # (Ticker, (Year, Data))
+
+for i in ticker_data_RDD.take(5):
+    print(i)
+
 ticker_grouped_RDD = ticker_data_RDD.groupByKey().mapValues(list)
+
+for i in ticker_grouped_RDD.take(5):
+    print(i)
 
 # Calculate statistics for each year and aggregate by ticker
 stats_RDD = ticker_grouped_RDD.mapValues(lambda years: {
@@ -79,15 +86,22 @@ stats_RDD = ticker_grouped_RDD.mapValues(lambda years: {
     'years': [calculate_year_stats(year_data) for _, year_data in years]
 })
 
+for i in stats_RDD.take(5):
+    print(i)
+
 # Format the results for saving
-results_RDD = stats_RDD.map(lambda x: (
-    x[0],  # Ticker
-    x[1]['name'],  # Name
-    x[1]['years']  # List of yearly statistics
-))
+def format_output(ticker, name, years):
+    return "\n".join([
+        f"{ticker}\t{name}\t{year['year']}\t{year['percent_change']}\t{year['min_price']}\t{year['max_price']}\t{year['avg_volume']}"
+        for year in years
+    ])
+
+results_RDD = stats_RDD.flatMap(lambda x: format_output(x[0], x[1]['name'], x[1]['years']).split("\n"))
+
+for i in results_RDD.take(5):
+    print(i)
 
 # Save the results to the specified output path
-results_RDD.map(lambda x: f"{x[0]}\t{x[1]}\t" + "\t".join([f"{year['year']}:{year['percent_change']}:{year['min_price']}:{year['max_price']}:{year['avg_volume']}" for year in x[2]]))
 results_RDD.saveAsTextFile(output_path)
 
 # Stop Spark context

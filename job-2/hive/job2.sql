@@ -20,9 +20,9 @@ STORED AS TEXTFILE;
 -- Caricamento dei dati nella tabella stock_data
 LOAD DATA INPATH 'hdfs://localhost:9000/input/merged_data_truck.csv' INTO TABLE stock_data;
 
+-- Step 2: Creazione della vista con l'anno estratto
 DROP VIEW IF EXISTS stock_data_with_year;
 
--- Step 2: Create view with year extracted
 CREATE VIEW stock_data_with_year AS
 SELECT
     ticker,
@@ -31,115 +31,81 @@ SELECT
     low,
     high,
     volume,
-    year(CAST(stock_date AS DATE)) AS stock_year,
+    year(stock_date) AS stock_year,
     stock_date,
     exchange_name,
     stock_name,
     sector,
     industry
-FROM stock_data;
+FROM
+    stock_data;
 
-WITH stock_yearly AS (
+    
+WITH aggregated_data AS (
+    SELECT 
+        sector,
+        industry,
+        stock_year,
+        ticker,
+        stock_open,
+        stock_close,
+        SUM(volume) as total_volume
+    FROM stock_data_with_year
+    GROUP BY sector, industry, stock_year, ticker, stock_open, stock_close
+),
+industry_totals AS (
+    SELECT
+        sector,
+        industry,
+        stock_year,
+        SUM(stock_open) as total_open_price,
+        SUM(stock_close) as total_close_price,
+        SUM(total_volume) as total_volume
+    FROM aggregated_data
+    GROUP BY sector, industry, stock_year
+),
+industry_percentage_change AS (
+    SELECT
+        sector,
+        industry,
+        stock_year,
+        (total_close_price - total_open_price) / total_open_price * 100 as percentage_change
+    FROM industry_totals
+),
+max_percentage_ticker AS (
     SELECT
         sector,
         industry,
         stock_year,
         ticker,
-        FIRST_VALUE(stock_open) OVER (PARTITION BY sector, industry, ticker, stock_year ORDER BY stock_date ASC) AS open_price,
-        LAST_VALUE(stock_close) OVER (PARTITION BY sector, industry, ticker, stock_year ORDER BY stock_date DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS close_price,
-        SUM(volume) OVER (PARTITION BY sector, industry, ticker, stock_year) AS total_volume,
-        ((LAST_VALUE(stock_close) OVER (PARTITION BY sector, industry, ticker, stock_year ORDER BY stock_date DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) - 
-        FIRST_VALUE(stock_open) OVER (PARTITION BY sector, industry, ticker, stock_year ORDER BY stock_date ASC)) / 
-        FIRST_VALUE(stock_open) OVER (PARTITION BY sector, industry, ticker, stock_year ORDER BY stock_date ASC)) * 100 AS percent_change
-    FROM
-        stock_data_with_year
+        (stock_close - stock_open) / stock_open * 100 as percentage_change,
+        ROW_NUMBER() OVER (PARTITION BY sector, industry, stock_year ORDER BY (stock_close - stock_open) / stock_open * 100 DESC) as rank
+    FROM aggregated_data
 ),
-
-industry_yearly AS (
+max_volume_ticker AS (
     SELECT
         sector,
         industry,
         stock_year,
-        SUM(open_price) AS total_open_price,
-        SUM(close_price) AS total_close_price,
-        SUM(total_volume) AS total_volume
-    FROM
-        stock_yearly
-    GROUP BY
-        sector,
-        industry,
-        stock_year
-),
-
-max_changes AS (
-    SELECT
-        sector,
-        industry,
-        stock_year,
-        ticker AS max_percent_ticker,
-        percent_change AS max_percent_change,
-        ROW_NUMBER() OVER (PARTITION BY sector, industry, stock_year ORDER BY percent_change DESC) AS rank_change
-    FROM
-        stock_yearly
-),
-
-max_volumes AS (
-    SELECT
-        sector,
-        industry,
-        stock_year,
-        ticker AS max_volume_ticker,
-        total_volume AS max_volume,
-        ROW_NUMBER() OVER (PARTITION BY sector, industry, stock_year ORDER BY total_volume DESC) AS rank_volume
-    FROM
-        stock_yearly
-),
-
-ranked_changes AS (
-    SELECT
-        sector,
-        industry,
-        stock_year,
-        max_percent_ticker,
-        max_percent_change
-    FROM
-        max_changes
-    WHERE
-        rank_change = 1
-),
-
-ranked_volumes AS (
-    SELECT
-        sector,
-        industry,
-        stock_year,
-        max_volume_ticker,
-        max_volume
-    FROM
-        max_volumes
-    WHERE
-        rank_volume = 1
+        ticker,
+        total_volume,
+        ROW_NUMBER() OVER (PARTITION BY sector, industry, stock_year ORDER BY total_volume DESC) as rank
+    FROM aggregated_data
 )
-
-SELECT
-    iy.sector,
-    iy.industry,
-    iy.stock_year,
-    ROUND(((iy.total_close_price - iy.total_open_price) / iy.total_open_price) * 100, 2) AS industry_percent_change,
-    rc.max_percent_ticker,
-    ROUND(rc.max_percent_change, 2) AS max_percent_change,
-    rv.max_volume_ticker,
-    rv.max_volume
-FROM
-    industry_yearly iy
-JOIN
-    ranked_changes rc
-ON
-    iy.sector = rc.sector AND iy.industry = rc.industry AND iy.stock_year = rc.stock_year
-JOIN
-    ranked_volumes rv
-ON
-    iy.sector = rv.sector AND iy.industry = rv.industry AND iy.stock_year = rv.stock_year
-ORDER BY
-    iy.sector,
-    industry_percent_change DESC;
+SELECT 
+    ipc.sector,
+    ipc.industry,
+    ipc.stock_year,
+    ROUND(ipc.percentage_change, 2) as industry_percentage_change,
+    mpt.ticker as max_percentage_ticker,
+    ROUND(mpt.percentage_change, 2) as max_percentage,
+    mvt.ticker as max_volume_ticker,
+    mvt.total_volume
+FROM 
+    industry_percentage_change ipc
+JOIN 
+    max_percentage_ticker mpt ON ipc.sector = mpt.sector AND ipc.industry = mpt.industry AND ipc.stock_year = mpt.stock_year AND mpt.rank = 1
+JOIN 
+    max_volume_ticker mvt ON ipc.sector = mvt.sector AND ipc.industry = mvt.industry AND ipc.stock_year = mvt.stock_year AND mvt.rank = 1
+ORDER BY 
+    ipc.sector, ipc.industry, ipc.stock_year;

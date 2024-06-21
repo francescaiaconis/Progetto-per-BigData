@@ -18,7 +18,7 @@ FIELDS TERMINATED BY ','
 STORED AS TEXTFILE;
 
 -- Caricamento dei dati nella tabella stock_data
-LOAD DATA INPATH 'hdfs://localhost:9000/input/merged_data_truck.csv' INTO TABLE stock_data;
+LOAD DATA INPATH 'hdfs://localhost:9000/input/merged_data.csv' INTO TABLE stock_data;
 
 -- Step 2: Creazione della vista con l'anno estratto
 DROP VIEW IF EXISTS stock_data_with_year;
@@ -109,6 +109,8 @@ FROM
     ) t;
 
 -- Calcolo della variazione percentuale dell'industria e unione dei dati finali
+DROP VIEW IF EXISTS final_data;
+CREATE VIEW final_data AS
 SELECT
     ad.sector,
     ad.industry,
@@ -125,4 +127,6 @@ JOIN
 JOIN
     max_volume_ticker mvt ON ad.sector = mvt.sector AND ad.industry = mvt.industry AND ad.stock_year = mvt.stock_year AND mvt.rank = 1
 ORDER BY
-    ad.sector, ad.industry, ad.stock_year;
+    ad.sector, industry_percent_change DESC;
+
+SELECT * FROM final_data ORDER BY sector, industry_percent_change DESC LIMIT 10;

@@ -2,7 +2,7 @@
 
 import argparse
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, year, max, sum, avg, round, expr, first
+from pyspark.sql.functions import col, year, max, sum, round, expr, first
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--input", type=str, help="Input file path")
@@ -12,12 +12,16 @@ input_file, output_path = args.input, args.output
 
 spark = SparkSession.builder.appName("job2_sql").getOrCreate()
 
+# Leggi il file CSV in un DataFrame
 df = spark.read.option("header", "true").option("inferSchema", "true").csv(input_file)
 
+# Estrai l'anno dalla colonna "date"
 df = df.withColumn("year", year(col("date"))).select("sector", "industry", "year", "ticker", "open", "close", "volume")
 
+# Calcola la percentuale di cambiamento
 df = df.withColumn("percent_change", expr("((close - open) / open) * 100"))
 
+# Aggrega per settore, industria e anno
 aggregated_df = df.groupBy("sector", "industry", "year").agg(
     sum("open").alias("sum_open_price"),
     sum("close").alias("sum_close_price"),
@@ -28,12 +32,15 @@ aggregated_df = df.groupBy("sector", "industry", "year").agg(
     first("ticker").alias("ticker_max_volume")
 )
 
+# Calcola la variazione percentuale dell'industria
 aggregated_df = aggregated_df.withColumn("industry_percent_change", expr(
     "((sum_close_price - sum_open_price) / sum_open_price) * 100"
 )).withColumn("max_percent_change", round("max_percent_change", 2))
 
-sorted_df = aggregated_df.orderBy(col("industry_percent_change").desc())
+# Ordina per settore e industry_percent_change in ordine decrescente
+sorted_df = aggregated_df.orderBy(col("sector"), col("industry_percent_change").desc())
 
+# Seleziona le colonne desiderate per i risultati finali
 result_df = sorted_df.select(
     "sector",
     "industry",
@@ -45,6 +52,8 @@ result_df = sorted_df.select(
     "max_volume"
 )
 
+# Scrivi i risultati nel file di output
 result_df.write.option("header", "true").csv(output_path)
 
+# Interrompi la sessione Spark
 spark.stop()

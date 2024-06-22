@@ -53,12 +53,12 @@ def ensure_tuple_length(x):
 
 reduced_RDD = reduced_RDD.mapValues(ensure_tuple_length)
 
-flattened_RDD = reduced_RDD.map(lambda x: (
+ris_RDD = reduced_RDD.map(lambda x: (
     x[0],  # (settore, industria, anno)
     (x[1][0], x[1][1], x[1][2], x[1][3], x[1][4], x[1][5], x[1][6])
 ))
 
-stats_RDD = flattened_RDD.map(lambda record: (
+stats_RDD = ris_RDD.map(lambda record: (
     record[0][0],  # settore
     record[0][1],  # industria
     record[0][2],  # anno

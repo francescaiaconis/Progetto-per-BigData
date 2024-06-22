@@ -18,7 +18,6 @@ STORED AS TEXTFILE;
 
 LOAD DATA INPATH 'hdfs://localhost:9000/input/merged_data.csv' INTO TABLE stock_data;
 
-
 DROP VIEW IF EXISTS stock_data_with_year;
 CREATE VIEW stock_data_with_year AS
 SELECT

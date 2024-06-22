@@ -16,7 +16,7 @@ def output_stats(data):
             # Calcola la variazione percentuale
             percent_change = ((last_close - first_close) / first_close) * 100
 
-            # Trova il prezzo minimo e massimo, e calcola il volume medio
+            # Trova il prezzo minimo e massimo, calcola il volume medio
             min_price = min(year_data['lows'])
             max_price = max(year_data['highs'])
             avg_volume = sum(year_data['volumes']) / len(year_data['volumes'])
@@ -39,7 +39,7 @@ for line in sys.stdin:
     if year not in data[ticker]['years']:
         data[ticker]['years'][year] = {'lows': [], 'highs': [], 'volumes': [], 'prices': {}}
 
-    # Aggiungi i dati dell'anno corrente
+    # Aggiunge i dati dell'anno corrente
     data[ticker]['years'][year]['prices'][date] = close
     data[ticker]['years'][year]['lows'].append(low)
     data[ticker]['years'][year]['highs'].append(high)

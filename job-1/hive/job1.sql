@@ -1,4 +1,3 @@
--- Step 1: Create table and load data
 DROP TABLE IF EXISTS stock_data;
 CREATE TABLE stock_data (
     ticker STRING,
@@ -19,9 +18,8 @@ STORED AS TEXTFILE;
 
 LOAD DATA INPATH 'hdfs://localhost:9000/input/merged_data.csv' INTO TABLE stock_data;
 
-DROP VIEW IF EXISTS stock_data_with_year;
 
--- Step 2: Create view with year extracted
+DROP VIEW IF EXISTS stock_data_with_year;
 CREATE VIEW stock_data_with_year AS
 SELECT
     ticker,
@@ -38,9 +36,10 @@ SELECT
     industry
 FROM stock_data;
 
-DROP TABLE IF EXISTS stock_statistics;
--- Step 3: Calculate statistics and create table for results
-CREATE TABLE stock_statistics AS
+
+DROP table IF EXISTS stock_statistics;
+DROP VIEW IF EXISTS stock_statistics;
+CREATE VIEW stock_statistics AS
 WITH ranked_data AS (
     SELECT
         ticker,
@@ -68,8 +67,4 @@ SELECT
 FROM ranked_data
 GROUP BY ticker, stock_name, stock_year;
 
--- Step 4: Select results for verification
-SELECT * FROM stock_statistics;
-DROP TABLE stock_data;
-DROP TABLE stock_data_with_year;
-DROP TABLE stock_statistics;
+SELECT * FROM stock_statistics LIMIT 10;

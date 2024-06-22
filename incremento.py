@@ -3,13 +3,10 @@ import pandas as pd
 df = pd.read_csv("../../Desktop/dati_bigdata/merged_data.csv")
 print(df.shape)
 
-# Estrai un primo campione casuale di 50000 record
 sampled_df1 = df.sample(n=200000, random_state=1)
 
-# Ottieni i record rimanenti dopo aver estratto il primo campione
 remaining_df = df.drop(sampled_df1.index)
 
-# Estrai un secondo campione casuale di 50000 record dai record rimanenti
 sampled_df2 = remaining_df.sample(n=400000, random_state=2)
 sampled_df1['close'] = sampled_df1['close'] * 1.1
 sampled_df1['open'] = sampled_df1['open'] * 1.1
